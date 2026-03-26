@@ -1,0 +1,23 @@
+{
+  "name": "sif",
+  "version": "0.1.0",
+  "description": "Support Intake Form — a 25-minute focused triage timer for a terminal",
+  "type": "module",
+  "bin": {
+    "sif": "./bin/sif.js"
+  },
+  "scripts": {
+    "start": "node bin/sif.js"
+  },
+  "keywords": ["timer", "cli", "triage", "focus", "terminal", "solarized"],
+  "author": "John Williford",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jwillifo/sif.git"
+  },
+  "homepage": "https://github.com/jwillifo/sif",
+  "bugs": {
+    "url": "https://github.com/jwillifo/sif/issues"
+  }
+}
