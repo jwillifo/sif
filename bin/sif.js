@@ -53,13 +53,19 @@ function shutdown() {
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
+// --- Redraw on terminal resize ---
+process.stdout.on('resize', () => {
+  process.stdout.write(CLEAR_SCREEN);
+});
+const CLEAR_SCREEN = '\x1b[2J\x1b[H';
+
 // --- Go ---
 renderer.init();
 timer.start();
 
 // 1fps — redraws once per second, mm:ss granularity
-const TICK_MS = 1000;
-let loop = setInterval(tick, TICK_MS);
+let finishedMode = false;
+let loop = setInterval(tick, 1000);
 
 function tick() {
   const state = timer.tick();
@@ -67,7 +73,8 @@ function tick() {
   renderer.drawFrame(state);
 
   // When finished, speed up the loop for glitch animation
-  if (state.finished && TICK_MS !== 150) {
+  if (state.finished && !finishedMode) {
+    finishedMode = true;
     clearInterval(loop);
     // ~7fps for mosaic effect
     loop = setInterval(tick, 150);

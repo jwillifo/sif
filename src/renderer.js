@@ -23,13 +23,15 @@ const FG_BASE01  = `${ESC}38;2;88;110;117m`;    // #586e75 — comments, seconda
 const FG_BASE0   = `${ESC}38;2;131;148;150m`;   // #839496 — body text
 const FG_BASE1   = `${ESC}38;2;147;161;161m`;   // #93a1a1 — emphasis
 
-// Accent colors
-const FG_CYAN    = `${ESC}38;2;42;161;152m`;    // #2aa198
+// Accent colors — full Solarized spectrum
 const FG_YELLOW  = `${ESC}38;2;181;137;0m`;     // #b58900
 const FG_ORANGE  = `${ESC}38;2;203;75;22m`;     // #cb4b16
 const FG_RED     = `${ESC}38;2;220;50;47m`;     // #dc322f
+const FG_MAGENTA = `${ESC}38;2;211;54;130m`;    // #d33682
+const FG_VIOLET  = `${ESC}38;2;108;113;196m`;   // #6c71c4
+const FG_BLUE    = `${ESC}38;2;38;139;210m`;    // #268bd2
+const FG_CYAN    = `${ESC}38;2;42;161;152m`;    // #2aa198
 const FG_GREEN   = `${ESC}38;2;133;153;0m`;     // #859900
-
 const BG_RED     = `${ESC}48;2;220;50;47m`;     // #dc322f
 
 // ── UI copy — edit these to tweak display text ──
@@ -182,20 +184,45 @@ export function createRenderer() {
 
     let out = CLEAR_SCREEN;
 
-    // Mosaic noise background — shifts every frame
-    const chars = '░▒▓█▀▄▌▐─│┼╳·:';
+    // Undulating wave background — layered sine waves for organic movement
+    const chars = ' ·:░▒▓█';
+    const t = glitchFrame * 0.15;
     for (let row = 1; row <= h; row++) {
       out += moveTo(row, 1);
       let line = '';
+      const rowTones = [];
       for (let col = 0; col < w; col++) {
-        // Deterministic-ish noise that shifts per frame
-        const idx = (row * 7 + col * 13 + glitchFrame * 3) % chars.length;
-        line += chars[idx];
+        const x = col / w;
+        const y = row / h;
+
+        // Layer multiple sine waves at different frequencies and phases
+        const wave1 = Math.sin(x * 6 + t) * Math.cos(y * 4 - t * 0.7);
+        const wave2 = Math.sin((x + y) * 5 - t * 1.3) * 0.5;
+        const wave3 = Math.cos(y * 8 + t * 0.5) * Math.sin(x * 3 - t) * 0.3;
+        const v = (wave1 + wave2 + wave3) / 1.8; // normalize to roughly -1..1
+
+        // Map to character density
+        const ci = Math.floor((v + 1) / 2 * (chars.length - 1));
+        line += chars[Math.max(0, Math.min(chars.length - 1, ci))];
+
+        // Store value for color mapping
+        rowTones.push(v);
       }
-      // Flicker between Solarized red tones
-      const tones = [FG_RED, FG_ORANGE, FG_BASE01];
-      const intensity = tones[(row + glitchFrame) % tones.length];
-      out += `${intensity}${line}${RESET}`;
+
+      // Full Solarized spectrum — warm peaks to cool troughs
+      const spectrum = [FG_RED, FG_ORANGE, FG_YELLOW, FG_GREEN, FG_CYAN, FG_BLUE, FG_VIOLET, FG_MAGENTA];
+
+      // Write char-by-char with per-cell color for smooth gradient
+      let colored = '';
+      for (let col = 0; col < w; col++) {
+        const v = rowTones[col];
+        // Map -1..1 to spectrum index, with a slow phase shift over time
+        const phase = (v + 1) / 2 + t * 0.1;
+        const si = Math.floor((phase * spectrum.length) % spectrum.length);
+        const tone = line[col] === ' ' ? FG_BASE01 : spectrum[Math.abs(si) % spectrum.length];
+        colored += tone + line[col];
+      }
+      out += colored + RESET;
     }
 
     // Central message punches through the noise
@@ -217,7 +244,10 @@ export function createRenderer() {
   }
 
   // Flash zone label briefly on skip — inverted colors, 3 rapid frames
+  let activeFlash = null;
   function flashZoneLabel(zone) {
+    if (activeFlash) clearInterval(activeFlash);
+
     const w = cols();
     const h = rows();
     const style = ZONE_STYLE[zone.name];
@@ -226,7 +256,7 @@ export function createRenderer() {
     const col = Math.max(1, Math.floor((w - label.length) / 2));
 
     let frame = 0;
-    const flashInterval = setInterval(() => {
+    activeFlash = setInterval(() => {
       let out = moveTo(centerRow, col);
       if (frame % 2 === 0) {
         out += `${INVERT}${style.fg}${BOLD}${label}${RESET}`;
@@ -235,7 +265,10 @@ export function createRenderer() {
       }
       process.stdout.write(out);
       frame++;
-      if (frame >= 4) clearInterval(flashInterval);
+      if (frame >= 4) {
+        clearInterval(activeFlash);
+        activeFlash = null;
+      }
     }, 100);
   }
 
