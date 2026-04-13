@@ -1,6 +1,7 @@
-import { getZone, getZoneTimeRemaining, getTotalTimeRemaining, getNextZone, TOTAL_SECONDS } from './zones.js';
+import { getZone, getZoneTimeRemaining, getTotalTimeRemaining, getNextZone } from './zones.js';
 
-export function createTimer() {
+export function createTimer(config) {
+  const { zones, totalSeconds } = config;
   let startTime = null;
   let running = false;
   let finished = false;
@@ -18,7 +19,7 @@ export function createTimer() {
       // Keep returning finished state so the glitch animation can loop
       if (finished) {
         return {
-          elapsed: { total: TOTAL_SECONDS, ms: TOTAL_SECONDS * 1000 },
+          elapsed: { total: totalSeconds, ms: totalSeconds * 1000 },
           zone: null,
           zoneRemaining: 0,
           totalRemaining: 0,
@@ -30,17 +31,16 @@ export function createTimer() {
       const elapsedMs = Date.now() - startTime;
       const elapsedSec = elapsedMs / 1000;
 
-      if (elapsedSec >= TOTAL_SECONDS) {
+      if (elapsedSec >= totalSeconds) {
         running = false;
         finished = true;
-        // return the finished state
         return this.tick();
       }
 
-      const zone = getZone(elapsedSec);
+      const zone = getZone(zones, elapsedSec);
       const zoneRemaining = getZoneTimeRemaining(elapsedSec, zone);
-      const totalRemaining = getTotalTimeRemaining(elapsedSec);
-      const progress = elapsedSec / TOTAL_SECONDS;
+      const totalRemaining = getTotalTimeRemaining(elapsedSec, totalSeconds);
+      const progress = elapsedSec / totalSeconds;
 
       return {
         elapsed: { total: elapsedSec, ms: elapsedMs },
@@ -55,17 +55,15 @@ export function createTimer() {
     skipToNextZone() {
       if (!startTime || finished) return null;
       const elapsedSec = (Date.now() - startTime) / 1000;
-      const currentZone = getZone(elapsedSec);
+      const currentZone = getZone(zones, elapsedSec);
       if (!currentZone) return null;
 
-      const nextZone = getNextZone(currentZone);
+      const nextZone = getNextZone(zones, currentZone);
       if (!nextZone) {
-        // In the last zone — skip to finish
-        startTime = Date.now() - TOTAL_SECONDS * 1000;
+        startTime = Date.now() - totalSeconds * 1000;
         return null;
       }
 
-      // Shift startTime backward so elapsed lands at the next zone's start
       startTime = Date.now() - nextZone.startSec * 1000;
       return nextZone;
     },

@@ -2,11 +2,28 @@
 
 // Made with care and thoughtfulness by John Williford and Claude Code
 
+import { createZones } from '../src/zones.js';
 import { createTimer } from '../src/timer.js';
 import { createRenderer } from '../src/renderer.js';
 
-const timer = createTimer();
-const renderer = createRenderer();
+// --- Parse CLI argument ---
+const arg = process.argv[2];
+let totalMinutes = 25;
+
+if (arg !== undefined) {
+  totalMinutes = parseInt(arg, 10);
+  if (isNaN(totalMinutes) || totalMinutes <= 0 || totalMinutes % 25 !== 0) {
+    console.error(`Usage: sif [minutes]`);
+    console.error(`  minutes must be a positive multiple of 25 (default: 25)`);
+    console.error(`  Examples: sif 25, sif 50, sif 75, sif 100`);
+    process.exit(1);
+  }
+}
+
+// --- Build config and components ---
+const config = createZones(totalMinutes);
+const timer = createTimer(config);
+const renderer = createRenderer(config);
 
 // --- Keypress handling ---
 process.stdin.setRawMode(true);

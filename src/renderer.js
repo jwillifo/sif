@@ -1,4 +1,4 @@
-import { ZONES, TOTAL_SECONDS } from './zones.js';
+// Config-driven — zones and totalSeconds are passed in via createRenderer(config)
 
 // ANSI escape helpers — zero dependencies
 const ESC = '\x1b[';
@@ -40,7 +40,10 @@ const LABELS = {
   totalRemaining: (time) => `total remaining: ${time}`,
   zoneIndicator: (label) => `[ ${label} ]`,
   skipFlash: (label) => `  >> ${label} >>  `,
-  finishedTitle: '  25:00 — CYCLE COMPLETE  ',
+  finishedTitle: (totalSeconds) => {
+    const m = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+    return `  ${m}:00 — CYCLE COMPLETE  `;
+  },
   finishedHint: '  press any key to dismiss  ',
 };
 
@@ -66,7 +69,8 @@ function formatTime(seconds) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function createRenderer() {
+export function createRenderer(config) {
+  const { zones: ZONES, totalSeconds: TOTAL_SECONDS } = config;
   const cols = () => process.stdout.columns || 80;
   const rows = () => process.stdout.rows || 24;
 
@@ -226,7 +230,7 @@ export function createRenderer() {
     }
 
     // Central message punches through the noise
-    const msg = LABELS.finishedTitle;
+    const msg = LABELS.finishedTitle(TOTAL_SECONDS);
     const sub = LABELS.finishedHint;
     const centerRow = Math.floor(h / 2);
     const msgCol = Math.floor((w - msg.length) / 2);
@@ -272,13 +276,13 @@ export function createRenderer() {
     }, 100);
   }
 
-  return { init, destroy, drawFrame, flashZoneLabel };
-}
-
-// Helper: determine which zone a given second falls into (for bar rendering)
-function getBarZone(sec) {
-  for (const z of ZONES) {
-    if (sec < z.endSec) return z;
+  // Helper: determine which zone a given second falls into (for bar rendering)
+  function getBarZone(sec) {
+    for (const z of ZONES) {
+      if (sec < z.endSec) return z;
+    }
+    return ZONES[ZONES.length - 1];
   }
-  return ZONES[ZONES.length - 1];
+
+  return { init, destroy, drawFrame, flashZoneLabel };
 }
